@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for url in urls {
             guard let c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { continue }
-            // Manage Templates… не прив'язане до теки.
+            // Manage Templates… doesn't act on a folder.
             if c.host == "settings" { showSettings(); continue }
             guard let path = c.queryItems?.first(where: { $0.name == "path" })?.value,
                   let dir = folder(for: path) else { continue }
@@ -204,8 +204,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         createFile(in: dir, suggested: "untitled.txt", ask: true)
     }
 
-    // Один клік у підменю: копія збереженого файлу. Якщо копії немає (старий шаблон лише з ім'ям),
-    // створюється порожній файл. Зайняте ім'я отримує наступне вільне, як у Finder (notes.md → notes 2.md).
+    // One click from the New File submenu: copy the stored file. If there is no copy (an old
+    // name-only template), create an empty file. If the name is taken, pick the next free name
+    // the way Finder does (notes.md → notes 2.md).
     private func newFile(in dir: String, from template: FileTemplate) {
         guard isValidFilename(template.filename) else { return }
         for _ in 0..<50 {
@@ -288,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let saveBox = NSButton(checkboxWithTitle: NSLocalizedString("Save as template", comment: ""), target: nil, action: nil)
         saveBox.state = saveAsTemplate ? .on : .off
 
-        let addButton = NSButton(title: NSLocalizedString("Make File a Template…", comment: ""), target: self, action: #selector(addTemplateWhileCreating(_:)))
+        let addButton = NSButton(title: NSLocalizedString("Use File as Template…", comment: ""), target: self, action: #selector(addTemplateWhileCreating(_:)))
         addButton.controlSize = .small
         addButton.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         addButton.setContentHuggingPriority(.required, for: .horizontal)
@@ -318,7 +319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return NewFileOptions(name: field.stringValue, saveAsTemplate: saveBox.state == .on)
     }
 
-    // Додавання готового файлу як шаблону живе в цьому ж діалозі, поруч із галочкою.
+    // Turning an existing file into a template lives in this same dialog, next to the checkbox.
     @objc private func addTemplateWhileCreating(_ sender: Any?) {
         addFileTemplatesFromPanel()
         settingsWindow?.reloadTemplates()

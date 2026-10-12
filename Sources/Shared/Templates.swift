@@ -1,9 +1,9 @@
 import Foundation
 import Darwin
 
-// Шаблони «Новий файл». Розширення лише читає імена з налаштувань і будує підменю.
-// Помічник за id знаходить копію файлу у своєму каталозі й копіює її в теку.
-// Ім'я і вміст у findermenu:// не потрапляють — у посиланні лише id.
+// User-defined New File templates. The extension only reads the names to build the submenu.
+// The helper looks up the stored file copy by id and copies it into the folder.
+// The name and contents never travel in the findermenu:// URL — only the id does.
 struct FileTemplate: Equatable {
     var id = UUID().uuidString
     var filename: String
@@ -19,7 +19,7 @@ private let templatesKey = "FileTemplates"
 
 var fileTemplates: [FileTemplate] {
     get {
-        // Кожен запис декодується окремо, щоб один зіпсований не сховав (і потім не затер) решту.
+        // Decode each entry on its own, so one malformed entry doesn't hide (and later overwrite) the rest.
         (settings.array(forKey: templatesKey) ?? []).compactMap { entry in
             guard let dict = entry as? [String: Any], let id = dict["id"] as? String,
                   let filename = dict["filename"] as? String, isValidFilename(filename) else { return nil }
@@ -35,9 +35,9 @@ func fileTemplate(id: String) -> FileTemplate? {
     fileTemplates.first { $0.id == id }
 }
 
-// Порожній шаблон з діалогу «Новий файл». Якщо таке ім'я вже є, лишається наявний запис.
-// Копія на диску — порожній файл; якщо записати її не вдалося, ім'я все одно зберігається,
-// і створення далі працює як раніше: порожній файл прямо в теці.
+// An empty template from the New File dialog. Saving a name that's already a template keeps the existing one.
+// The stored copy is an empty file; if writing it fails, the name is still saved, and creating still
+// works the old way: an empty file written straight into the folder.
 func saveFileTemplate(filename: String) {
     let name = filename.trimmingCharacters(in: .whitespacesAndNewlines)
     guard isValidFilename(name), !fileTemplates.contains(where: { $0.filename == name }) else { return }
@@ -51,8 +51,8 @@ func saveFileTemplate(filename: String) {
     fileTemplates.append(template)
 }
 
-// Копія наявного файлу або пакета (наприклад .pages). Звичайну теку не беремо.
-// Символьне посилання розгортається в момент додавання: у сховищі лежить сам файл.
+// A copy of an existing file or package (such as .pages). Ordinary folders are refused.
+// A symlink is resolved when adding, so the store holds the file itself.
 func addFileTemplate(copying source: URL, replace: Bool) throws {
     let name = source.lastPathComponent
     guard isValidFilename(name) else { throw TemplateFileError.invalid }
@@ -81,7 +81,7 @@ func removeAllFileTemplates() {
     fileTemplates = []
 }
 
-// Файл у сховищі для цього id. nil — старий шаблон без копії, посилання або шлях поза каталогом.
+// The file in the store for this id. nil for an old name-only template, a link, or a path outside the store.
 func storedTemplateFile(_ template: FileTemplate) -> URL? {
     guard let file = try? templateFileURL(id: template.id, filename: template.filename, createDirectory: false),
           !isLink(file),
@@ -91,13 +91,13 @@ func storedTemplateFile(_ template: FileTemplate) -> URL? {
     return values.isRegularFile == true ? file : nil
 }
 
-// Правила імені для нового файлу і для шаблону: не порожнє, без роздільників шляху.
+// The rules for any New File name, typed or saved as a template: no empty names, no path separators.
 func isValidFilename(_ name: String) -> Bool {
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     return !name.isEmpty && !name.contains("/") && name != "." && name != ".."
 }
 
-// Знімає мітку карантину з копії, не переходячи за посиланнями всередині пакета.
+// Clears the quarantine flag on a copy without following links inside a package.
 func stripQuarantine(at url: URL) {
     removexattr(url.path, "com.apple.quarantine", XATTR_NOFOLLOW)
     guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
@@ -107,7 +107,7 @@ func stripQuarantine(at url: URL) {
     }
 }
 
-// MARK: - Сховище
+// MARK: - Store
 
 private func isSafeID(_ id: String) -> Bool {
     let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-")
@@ -119,7 +119,7 @@ private func isLink(_ url: URL) -> Bool {
     return values.isSymbolicLink == true || values.isAliasFile == true
 }
 
-// Корінь сховища після розв'язання посилань має лишатися всередині Application Support.
+// After resolving links, the store root must still sit inside Application Support.
 private func templatesRoot(create: Bool) throws -> URL {
     let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .resolvingSymlinksInPath()
@@ -144,8 +144,8 @@ private func templateFileURL(id: String, filename: String, createDirectory: Bool
     guard isSafeID(id), isValidFilename(filename) else { throw TemplateFileError.invalid }
     let root = try templatesRoot(create: createDirectory)
     let dir = root.appendingPathComponent(id, isDirectory: true)
-    // Посилання замість каталогу id вело б назовні сховища. Видалення такого посилання
-    // робить deleteStoredTemplate, сюди шлях крізь нього не повертається.
+    // A link in place of the id folder would point outside the store. deleteStoredTemplate
+    // removes such a link; this path never returns a location through it.
     if isLink(dir) { throw TemplateFileError.invalid }
     if createDirectory {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

@@ -45,7 +45,7 @@
 "Choose" = "Choose";
 "New File templates" = "New File templates";
 "No templates yet." = "No templates yet.";
-"Make File a Template…" = "Make File a Template…";
+"Use File as Template…" = "Use File as Template…";
 "Choose a file to save as a template:" = "Choose a file to save as a template:";
 "Add" = "Add";
 "\"%@\" is already a template." = "\"%@\" is already a template.";

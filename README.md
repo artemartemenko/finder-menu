@@ -73,12 +73,12 @@ On macOS 26 and later the items have icons, like Finder's own. On earlier versio
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/templates-dark.png">
-    <img src="docs/images/templates-light.png" width="760" alt="Left: the New File dialog with notes.md typed as the name, Save as template on the left and Make File a Template… on the right. Right: the New File submenu, with New File… at the top, the templates notes.md, .env, README.md and todo.txt, and Manage Templates… at the bottom">
+    <img src="docs/images/templates-light.png" width="760" alt="Left: the New File dialog with notes.md typed as the name, Save as template on the left and Use File as Template… on the right. Right: the New File submenu, with New File… at the top, the templates notes.md, .env, README.md and todo.txt, and Manage Templates… at the bottom">
   </picture>
 </p>
 
 1. Tick **Save as template** in the New File dialog to reuse an empty file of that name.
-2. In that same dialog, **Make File a Template…** keeps a copy of a file you already have: a script, a note, a Pages or Word document. Finder Menu stores that copy and leaves the original where it is.
+2. In that same dialog, **Use File as Template…** keeps a copy of a file you already have: a script, a note, a Pages or Word document. Finder Menu stores that copy and leaves the original where it is.
 3. Next time, pick it under **New File**. You get a copy of the stored file.
 
 If the name is taken, you get `notes 2.md`, like in Finder. **Manage Templates…** removes templates.

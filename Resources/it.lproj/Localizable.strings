@@ -45,7 +45,7 @@
 "Choose" = "Scegli";
 "New File templates" = "Modelli di “Nuovo file”";
 "No templates yet." = "Nessun modello ancora.";
-"Make File a Template…" = "Rendi il file un modello…";
+"Use File as Template…" = "Usa file come modello…";
 "Choose a file to save as a template:" = "Scegli un file da salvare come modello:";
 "Add" = "Aggiungi";
 "\"%@\" is already a template." = "“%@” è già un modello.";

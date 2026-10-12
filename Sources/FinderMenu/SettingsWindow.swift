@@ -249,7 +249,7 @@ final class SettingsWindowController: NSWindowController {
     }
 }
 
-// Той самий вибір файлу, що й у налаштуваннях: його викликає і вікно, і пункт меню.
+// The same file picker the settings window uses; the New File dialog calls it too.
 func addFileTemplatesFromPanel() {
     let panel = NSOpenPanel()
     panel.message = NSLocalizedString("Choose a file to save as a template:", comment: "")
@@ -259,7 +259,8 @@ func addFileTemplatesFromPanel() {
     panel.allowsMultipleSelection = true
     panel.treatsFilePackagesAsDirectories = false
     panel.resolvesAliases = true
-    // Розширення не може передати фокус, а програма без вікон не виходить наперед сама.
+    // The Finder extension can't hand focus to the helper, and macOS refuses to bring forward an app
+    // with no windows on screen. So ask once the panel is showing.
     RunLoop.main.perform(inModes: [.modalPanel]) { NSApp.activate(ignoringOtherApps: true) }
     guard panel.runModal() == .OK else { return }
     for url in panel.urls {

@@ -110,8 +110,9 @@ class FinderMenuSync: FIFinderSync {
         return sub
     }
 
-    // New File… (діалог імені, галочка і додавання файлу як шаблону) зверху. Далі шаблони
-    // в один клік, а Manage Templates… відкриває налаштування, де їх можна прибрати.
+    // New File… (the name dialog, with Save as template and Use File as Template…) comes first;
+    // below it, templates are one-click items, and Manage Templates… opens the settings window,
+    // where they can be removed.
     static func newFileMenu(_ templates: [FileTemplate]) -> NSMenu {
         let sub = NSMenu(title: "")
         sub.addItem(withTitle: NSLocalizedString("New File…", comment: ""), action: #selector(FinderMenuSync.newFile(_:)), keyEquivalent: "")

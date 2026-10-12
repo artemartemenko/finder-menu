@@ -45,7 +45,7 @@
 "Choose" = "Seleccionar";
 "New File templates" = "Plantillas de archivos nuevos";
 "No templates yet." = "Todavía no hay plantillas.";
-"Make File a Template…" = "Convertir archivo en plantilla…";
+"Use File as Template…" = "Usar archivo como plantilla…";
 "Choose a file to save as a template:" = "Elige un archivo para guardar como plantilla:";
 "Add" = "Añadir";
 "\"%@\" is already a template." = "\"%@\" ya es una plantilla.";
