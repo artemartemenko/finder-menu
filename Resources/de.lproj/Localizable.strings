@@ -45,5 +45,12 @@
 "Choose" = "Auswählen";
 "New File templates" = "Vorlagen für „Neue Datei“";
 "No templates yet." = "Noch keine Vorlagen.";
+"Make File a Template…" = "Datei zur Vorlage machen…";
+"Choose a file to save as a template:" = "Wähle eine Datei, die als Vorlage gespeichert werden soll:";
+"Add" = "Hinzufügen";
+"\"%@\" is already a template." = "„%@“ ist bereits eine Vorlage.";
+"Replace the saved template with this file?" = "Die gespeicherte Vorlage durch diese Datei ersetzen?";
+"Replace" = "Ersetzen";
+"Couldn't add \"%@\" as a template." = "„%@“ konnte nicht als Vorlage hinzugefügt werden.";
 "Remove" = "Entfernen";
 "Remove All" = "Alle entfernen";

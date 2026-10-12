@@ -120,16 +120,19 @@ final class SettingsWindowController: NSWindowController {
             for template in templates {
                 templatesStack.addArrangedSubview(templateRow(template))
             }
-            if templates.count > 1 {
-                let removeAll = smallButton(NSLocalizedString("Remove All", comment: ""), action: #selector(removeAllTemplates(_:)))
-                let row = NSStackView(views: [NSView(), removeAll])
-                row.orientation = .horizontal
-                row.alignment = .centerY
-                row.distribution = .fill
-                // A little apart from the rows, so it doesn't read as another template.
-                templatesStack.setCustomSpacing(12, after: templatesStack.arrangedSubviews.last!)
-                templatesStack.addArrangedSubview(row)
+        }
+        if templates.count > 1 {
+            if let last = templatesStack.arrangedSubviews.last {
+                templatesStack.setCustomSpacing(12, after: last)
             }
+            let removeAll = smallButton(NSLocalizedString("Remove All", comment: ""), action: #selector(removeAllTemplates(_:)))
+            let spacer = NSView()
+            spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            let row = NSStackView(views: [spacer, removeAll])
+            row.orientation = .horizontal
+            row.alignment = .centerY
+            row.distribution = .fill
+            templatesStack.addArrangedSubview(row)
         }
         resizeToFit()
     }
@@ -177,7 +180,7 @@ final class SettingsWindowController: NSWindowController {
     }
 
     @objc private func removeAllTemplates(_ sender: Any?) {
-        fileTemplates = []
+        removeAllFileTemplates()
         reloadTemplates()
     }
 
@@ -244,4 +247,50 @@ final class SettingsWindowController: NSWindowController {
         }
         chosenTerminal = item.representedObject as? String
     }
+}
+
+// Той самий вибір файлу, що й у налаштуваннях: його викликає і вікно, і пункт меню.
+func addFileTemplatesFromPanel() {
+    let panel = NSOpenPanel()
+    panel.message = NSLocalizedString("Choose a file to save as a template:", comment: "")
+    panel.prompt = NSLocalizedString("Add", comment: "")
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = false
+    panel.allowsMultipleSelection = true
+    panel.treatsFilePackagesAsDirectories = false
+    panel.resolvesAliases = true
+    // Розширення не може передати фокус, а програма без вікон не виходить наперед сама.
+    RunLoop.main.perform(inModes: [.modalPanel]) { NSApp.activate(ignoringOtherApps: true) }
+    guard panel.runModal() == .OK else { return }
+    for url in panel.urls {
+        addChosenTemplate(url)
+    }
+}
+
+private func addChosenTemplate(_ url: URL) {
+    do {
+        try addFileTemplate(copying: url, replace: false)
+    } catch TemplateFileError.duplicate(let name) {
+        let alert = NSAlert()
+        alert.messageText = String(format: NSLocalizedString("\"%@\" is already a template.", comment: ""), name)
+        alert.informativeText = NSLocalizedString("Replace the saved template with this file?", comment: "")
+        alert.addButton(withTitle: NSLocalizedString("Replace", comment: ""))
+        alert.addButton(withTitle: NSLocalizedString("Cancel", comment: ""))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            try addFileTemplate(copying: url, replace: true)
+        } catch {
+            NSLog("Finder Menu couldn't replace a template: \(error)")
+            reportTemplateAddFailure(url.lastPathComponent)
+        }
+    } catch {
+        NSLog("Finder Menu couldn't add a template: \(error)")
+        reportTemplateAddFailure(url.lastPathComponent)
+    }
+}
+
+private func reportTemplateAddFailure(_ name: String) {
+    let alert = NSAlert()
+    alert.messageText = String(format: NSLocalizedString("Couldn't add \"%@\" as a template.", comment: ""), name)
+    alert.runModal()
 }

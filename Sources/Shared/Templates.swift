@@ -1,18 +1,25 @@
 import Foundation
+import Darwin
 
-// User-defined New File templates. Saved from the New File dialog ("Save as template");
-// the extension only reads them to build the New File submenu, and the helper creates the
-// file from the chosen id (the file name never travels in the findermenu:// URL).
+// Шаблони «Новий файл». Розширення лише читає імена з налаштувань і будує підменю.
+// Помічник за id знаходить копію файлу у своєму каталозі й копіює її в теку.
+// Ім'я і вміст у findermenu:// не потрапляють — у посиланні лише id.
 struct FileTemplate: Equatable {
     var id = UUID().uuidString
     var filename: String
+}
+
+enum TemplateFileError: Error {
+    case invalid
+    case notAFile
+    case duplicate(String)
 }
 
 private let templatesKey = "FileTemplates"
 
 var fileTemplates: [FileTemplate] {
     get {
-        // Decode each entry on its own, so one malformed entry doesn't hide (and later overwrite) the rest.
+        // Кожен запис декодується окремо, щоб один зіпсований не сховав (і потім не затер) решту.
         (settings.array(forKey: templatesKey) ?? []).compactMap { entry in
             guard let dict = entry as? [String: Any], let id = dict["id"] as? String,
                   let filename = dict["filename"] as? String, isValidFilename(filename) else { return nil }
@@ -28,18 +35,164 @@ func fileTemplate(id: String) -> FileTemplate? {
     fileTemplates.first { $0.id == id }
 }
 
-// Saving a name that's already a template keeps the existing one.
+// Порожній шаблон з діалогу «Новий файл». Якщо таке ім'я вже є, лишається наявний запис.
+// Копія на диску — порожній файл; якщо записати її не вдалося, ім'я все одно зберігається,
+// і створення далі працює як раніше: порожній файл прямо в теці.
 func saveFileTemplate(filename: String) {
-    guard isValidFilename(filename), !fileTemplates.contains(where: { $0.filename == filename }) else { return }
-    fileTemplates.append(FileTemplate(filename: filename))
+    let name = filename.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard isValidFilename(name), !fileTemplates.contains(where: { $0.filename == name }) else { return }
+    let template = FileTemplate(filename: name)
+    do {
+        let dest = try templateFileURL(id: template.id, filename: name, createDirectory: true)
+        try Data().write(to: dest, options: .withoutOverwriting)
+    } catch {
+        NSLog("Finder Menu couldn't store an empty template: \(error)")
+    }
+    fileTemplates.append(template)
+}
+
+// Копія наявного файлу або пакета (наприклад .pages). Звичайну теку не беремо.
+// Символьне посилання розгортається в момент додавання: у сховищі лежить сам файл.
+func addFileTemplate(copying source: URL, replace: Bool) throws {
+    let name = source.lastPathComponent
+    guard isValidFilename(name) else { throw TemplateFileError.invalid }
+    let resolved = source.resolvingSymlinksInPath()
+    try validateTemplateSource(resolved)
+
+    if let existing = fileTemplates.first(where: { $0.filename == name }) {
+        guard replace else { throw TemplateFileError.duplicate(name) }
+        try storeTemplateCopy(id: existing.id, filename: name, from: resolved, replace: true)
+        return
+    }
+    let template = FileTemplate(filename: name)
+    try storeTemplateCopy(id: template.id, filename: name, from: resolved, replace: false)
+    fileTemplates.append(template)
 }
 
 func removeFileTemplate(id: String) {
+    deleteStoredTemplate(id: id)
     fileTemplates = fileTemplates.filter { $0.id != id }
 }
 
-// The rules for any New File name, typed or saved as a template: no empty names, no path separators.
+func removeAllFileTemplates() {
+    for template in fileTemplates {
+        deleteStoredTemplate(id: template.id)
+    }
+    fileTemplates = []
+}
+
+// Файл у сховищі для цього id. nil — старий шаблон без копії, посилання або шлях поза каталогом.
+func storedTemplateFile(_ template: FileTemplate) -> URL? {
+    guard let file = try? templateFileURL(id: template.id, filename: template.filename, createDirectory: false),
+          !isLink(file),
+          let values = try? file.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .isRegularFileKey])
+    else { return nil }
+    if values.isDirectory == true { return values.isPackage == true ? file : nil }
+    return values.isRegularFile == true ? file : nil
+}
+
+// Правила імені для нового файлу і для шаблону: не порожнє, без роздільників шляху.
 func isValidFilename(_ name: String) -> Bool {
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     return !name.isEmpty && !name.contains("/") && name != "." && name != ".."
+}
+
+// Знімає мітку карантину з копії, не переходячи за посиланнями всередині пакета.
+func stripQuarantine(at url: URL) {
+    removexattr(url.path, "com.apple.quarantine", XATTR_NOFOLLOW)
+    guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
+    for case let item as URL in enumerator {
+        removexattr(item.path, "com.apple.quarantine", XATTR_NOFOLLOW)
+        if isLink(item) { enumerator.skipDescendants() }
+    }
+}
+
+// MARK: - Сховище
+
+private func isSafeID(_ id: String) -> Bool {
+    let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-")
+    return !id.isEmpty && id.count <= 64 && id.unicodeScalars.allSatisfy { allowed.contains($0) }
+}
+
+private func isLink(_ url: URL) -> Bool {
+    guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isAliasFileKey]) else { return false }
+    return values.isSymbolicLink == true || values.isAliasFile == true
+}
+
+// Корінь сховища після розв'язання посилань має лишатися всередині Application Support.
+private func templatesRoot(create: Bool) throws -> URL {
+    let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .resolvingSymlinksInPath()
+    let root = appSupport
+        .appendingPathComponent("Finder Menu", isDirectory: true)
+        .appendingPathComponent("Templates", isDirectory: true)
+    if create {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    }
+    let resolved = root.resolvingSymlinksInPath()
+    guard resolved.path.hasPrefix(appSupport.path + "/") else { throw TemplateFileError.invalid }
+    if !create {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue else {
+            throw TemplateFileError.invalid
+        }
+    }
+    return resolved
+}
+
+private func templateFileURL(id: String, filename: String, createDirectory: Bool) throws -> URL {
+    guard isSafeID(id), isValidFilename(filename) else { throw TemplateFileError.invalid }
+    let root = try templatesRoot(create: createDirectory)
+    let dir = root.appendingPathComponent(id, isDirectory: true)
+    // Посилання замість каталогу id вело б назовні сховища. Видалення такого посилання
+    // робить deleteStoredTemplate, сюди шлях крізь нього не повертається.
+    if isLink(dir) { throw TemplateFileError.invalid }
+    if createDirectory {
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    }
+    guard dir.resolvingSymlinksInPath().deletingLastPathComponent().path == root.path else {
+        throw TemplateFileError.invalid
+    }
+    return dir.appendingPathComponent(filename)
+}
+
+private func validateTemplateSource(_ url: URL) throws {
+    guard !isLink(url),
+          let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .isRegularFileKey])
+    else { throw TemplateFileError.notAFile }
+    if values.isDirectory == true {
+        guard values.isPackage == true else { throw TemplateFileError.notAFile }
+        return
+    }
+    guard values.isRegularFile == true else { throw TemplateFileError.notAFile }
+}
+
+private func storeTemplateCopy(id: String, filename: String, from source: URL, replace: Bool) throws {
+    let dest = try templateFileURL(id: id, filename: filename, createDirectory: true)
+    guard !isLink(dest.deletingLastPathComponent()), !isLink(dest) else { throw TemplateFileError.invalid }
+    let staging = dest.deletingLastPathComponent().appendingPathComponent("incoming-\(UUID().uuidString)")
+    do {
+        try FileManager.default.copyItem(at: source, to: staging)
+        stripQuarantine(at: staging)
+        if FileManager.default.fileExists(atPath: dest.path) {
+            guard replace else { throw TemplateFileError.duplicate(filename) }
+            try FileManager.default.removeItem(at: dest)
+        }
+        try FileManager.default.moveItem(at: staging, to: dest)
+    } catch {
+        try? FileManager.default.removeItem(at: staging)
+        throw error
+    }
+}
+
+private func deleteStoredTemplate(id: String) {
+    guard isSafeID(id), let root = try? templatesRoot(create: false) else { return }
+    let dir = root.appendingPathComponent(id, isDirectory: true)
+    guard dir.deletingLastPathComponent().resolvingSymlinksInPath().path == root.path else { return }
+    guard FileManager.default.fileExists(atPath: dir.path) || isLink(dir) else { return }
+    do {
+        try FileManager.default.removeItem(at: dir)
+    } catch {
+        NSLog("Finder Menu couldn't remove a stored template: \(error)")
+    }
 }

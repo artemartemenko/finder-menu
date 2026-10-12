@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for url in urls {
             guard let c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { continue }
-            // Manage Templates… doesn't act on a folder.
+            // Manage Templates… не прив'язане до теки.
             if c.host == "settings" { showSettings(); continue }
             guard let path = c.queryItems?.first(where: { $0.name == "path" })?.value,
                   let dir = folder(for: path) else { continue }
@@ -204,10 +204,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         createFile(in: dir, suggested: "untitled.txt", ask: true)
     }
 
-    // One click from the New File submenu: use the template's name, and if that name is taken,
-    // pick the next free name the way Finder does (notes.md → notes 2.md).
+    // Один клік у підменю: копія збереженого файлу. Якщо копії немає (старий шаблон лише з ім'ям),
+    // створюється порожній файл. Зайняте ім'я отримує наступне вільне, як у Finder (notes.md → notes 2.md).
     private func newFile(in dir: String, from template: FileTemplate) {
-        createFile(in: dir, suggested: unusedFilename(template.filename, in: dir), ask: false)
+        guard isValidFilename(template.filename) else { return }
+        for _ in 0..<50 {
+            let name = unusedFilename(template.filename, in: dir)
+            let dest = URL(fileURLWithPath: (dir as NSString).appendingPathComponent(name))
+            do {
+                if let stored = storedTemplateFile(template) {
+                    try FileManager.default.copyItem(at: stored, to: dest)
+                    stripQuarantine(at: dest)
+                } else {
+                    try Data().write(to: dest, options: .withoutOverwriting)
+                }
+                NSWorkspace.shared.activateFileViewerSelecting([dest])
+                return
+            } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                continue
+            } catch {
+                NSLog("Finder Menu couldn't create a file from a template: \(error)")
+                let alert = NSAlert()
+                alert.messageText = NSLocalizedString("New File", comment: "")
+                alert.informativeText = NSLocalizedString("⚠️ Couldn't create the file here (no permission?).", comment: "")
+                alert.runModal()
+                return
+            }
+        }
     }
 
     private func createFile(in dir: String, suggested: String, ask: Bool) {
@@ -260,13 +283,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         field.stringValue = suggested
         field.placeholderString = "name.ext"
         field.translatesAutoresizingMaskIntoConstraints = false
-        field.widthAnchor.constraint(equalToConstant: 320).isActive = true
         field.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
         let saveBox = NSButton(checkboxWithTitle: NSLocalizedString("Save as template", comment: ""), target: nil, action: nil)
         saveBox.state = saveAsTemplate ? .on : .off
 
-        let stack = NSStackView(views: [field, saveBox])
+        let addButton = NSButton(title: NSLocalizedString("Make File a Template…", comment: ""), target: self, action: #selector(addTemplateWhileCreating(_:)))
+        addButton.controlSize = .small
+        addButton.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        addButton.setContentHuggingPriority(.required, for: .horizontal)
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let row = NSStackView(views: [saveBox, spacer, addButton])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        let width = max(320, saveBox.fittingSize.width + addButton.fittingSize.width + 12)
+        field.widthAnchor.constraint(equalToConstant: width).isActive = true
+        row.widthAnchor.constraint(equalToConstant: width).isActive = true
+
+        let stack = NSStackView(views: [field, row])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -280,6 +316,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         RunLoop.main.perform(inModes: [.modalPanel]) { NSApp.activate(ignoringOtherApps: true) }
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         return NewFileOptions(name: field.stringValue, saveAsTemplate: saveBox.state == .on)
+    }
+
+    // Додавання готового файлу як шаблону живе в цьому ж діалозі, поруч із галочкою.
+    @objc private func addTemplateWhileCreating(_ sender: Any?) {
+        addFileTemplatesFromPanel()
+        settingsWindow?.reloadTemplates()
     }
 }
 
