@@ -46,8 +46,9 @@
 "New File templates" = "Шаблони «Новий файл»";
 "No templates yet." = "Ще немає шаблонів.";
 "Use File as Template…" = "Використати файл як шаблон…";
-"Choose a file to save as a template:" = "Виберіть файл, який зберегти як шаблон:";
-"Add" = "Додати";
+"Use as Template…" = "Використати як шаблон…";
+"Choose a file to use as a template:" = "Виберіть файл-шаблон:";
+"From: %@" = "З файла: %@";
 "\"%@\" is already a template." = "«%@» уже є шаблоном.";
 "Replace the saved template with this file?" = "Замінити збережений шаблон цим файлом?";
 "Replace" = "Замінити";

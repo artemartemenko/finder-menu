@@ -51,10 +51,27 @@ func saveFileTemplate(filename: String) {
     fileTemplates.append(template)
 }
 
+// Absolute path to a file or package that can become a template. Ordinary folders and missing paths are nil.
+func templateSourceFile(atPath path: String) -> URL? {
+    guard path.hasPrefix("/") else { return nil }
+    let url = URL(fileURLWithPath: (path as NSString).standardizingPath).resolvingSymlinksInPath()
+    do {
+        try validateTemplateSource(url)
+        return url
+    } catch {
+        return nil
+    }
+}
+
+func templateSourceFile(at url: URL) -> URL? {
+    templateSourceFile(atPath: url.path)
+}
+
 // A copy of an existing file or package (such as .pages). Ordinary folders are refused.
 // A symlink is resolved when adding, so the store holds the file itself.
-func addFileTemplate(copying source: URL, replace: Bool) throws {
-    let name = source.lastPathComponent
+// `filename` is the template name to store (defaults to the source's last path component).
+func addFileTemplate(copying source: URL, as filename: String? = nil, replace: Bool) throws {
+    let name = (filename ?? source.lastPathComponent).trimmingCharacters(in: .whitespacesAndNewlines)
     guard isValidFilename(name) else { throw TemplateFileError.invalid }
     let resolved = source.resolvingSymlinksInPath()
     try validateTemplateSource(resolved)

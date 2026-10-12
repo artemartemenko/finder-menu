@@ -178,7 +178,8 @@
   }
   .field .caret { width: 1px; height: 15px; margin-left: 1px; background: var(--text); }
   .alert .checkbox { margin-top: 14px; }
-  .alert .template-line { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; gap: 16px; }
+  .alert .from { margin-top: 6px; font-size: 11px; line-height: 14px; color: var(--text-2); }
+  .alert .template-line { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 16px; }
   .alert .template-line .checkbox { margin-top: 0; }
   .buttons { display: flex; gap: 10px; margin-top: 20px; }
   .buttons > div {
@@ -332,6 +333,7 @@ const scenes = {
       h('div', { cls: 'title' }, 'New File'),
       h('div', { cls: 'info' }, 'In: ~/Projects/my-app'),
       h('div', { cls: 'field' }, 'notes.md', h('span', { cls: 'caret' })),
+      h('div', { cls: 'from' }, 'From: ~/Documents/notes.md'),
       h('div', { cls: 'template-line' },
         checkbox('Save as template'),
         h('div', { cls: 'button' }, 'Use File as Template…')),

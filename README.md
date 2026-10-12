@@ -62,7 +62,7 @@ Right-click **empty space** in any folder, with nothing selected:
 | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/copy-path-dark.png"><img src="docs/icons/copy-path.png" width="20" height="20" alt=""></picture> | **Copy&nbsp;Path** | Copies the current folder's full path. |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/icons/parent-folder-dark.png"><img src="docs/icons/parent-folder.png" width="20" height="20" alt=""></picture> | **Go&nbsp;to&nbsp;Parent&nbsp;Folder** | Moves the window up one level, even when Finder's Back button is greyed out (e.g. a window opened with `open .`). |
 
-Right-clicking a file or folder works too: **Copy Path** copies the selected items' paths, and **Open Terminal Here** and **Open Folder With** use the selected folder.
+Right-clicking a file or folder works too: **Copy Path** copies the selected items' paths, and **Open Terminal Here** and **Open Folder With** use the selected folder. Right-click a single file for **Use as Template…**, which opens New File with that file already chosen.
 
 The menu also appears on external drives, disk images and network shares (such as SMB), not just your Mac's own disk.
 
@@ -73,12 +73,12 @@ On macOS 26 and later the items have icons, like Finder's own. On earlier versio
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/templates-dark.png">
-    <img src="docs/images/templates-light.png" width="760" alt="Left: the New File dialog with notes.md typed as the name, Save as template on the left and Use File as Template… on the right. Right: the New File submenu, with New File… at the top, the templates notes.md, .env, README.md and todo.txt, and Manage Templates… at the bottom">
+    <img src="docs/images/templates-light.png" width="760" alt="Left: the New File dialog with notes.md, a From path under the name field, Save as template on the left and Use File as Template… on the right. Right: the New File submenu, with New File… at the top, the templates notes.md, .env, README.md and todo.txt, and Manage Templates… at the bottom">
   </picture>
 </p>
 
 1. Tick **Save as template** in the New File dialog to reuse an empty file of that name.
-2. In that same dialog, **Use File as Template…** keeps a copy of a file you already have: a script, a note, a Pages or Word document. Finder Menu stores that copy and leaves the original where it is.
+2. Or pick a file you already have: **Use File as Template…** in the dialog, or **Use as Template…** when you right-click the file. The name field is filled in (you can edit it), and Create stores a copy under that name. The original file stays where it is.
 3. Next time, pick it under **New File**. You get a copy of the stored file.
 
 If the name is taken, you get `notes 2.md`, like in Finder. **Manage Templates…** removes templates.
